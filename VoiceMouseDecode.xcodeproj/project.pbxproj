@@ -6,7 +6,24 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		75161E792E209D28001EBE9A /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75161E782E209D28001EBE9A /* CoreBluetooth.framework */; };
+		7541691F2E5C80C900B26A2B /* libhidapi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7541691E2E5C80C900B26A2B /* libhidapi.a */; };
+		75D53D9F2E0CDB630012D334 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75D53D9E2E0CDB630012D334 /* IOKit.framework */; };
+		75D53DA12E0CDB6A0012D334 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75D53DA02E0CDB6A0012D334 /* CoreFoundation.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXCopyFilesBuildPhase section */
+		7541691D2E5C7EC400B26A2B /* Embed Libraries */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Embed Libraries";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		75D53D912E0CD9FE0012D334 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -19,7 +36,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		75161E782E209D28001EBE9A /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
+		7541691A2E5C7E4300B26A2B /* libhidapi.0.15.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libhidapi.0.15.0.dylib; path = ../../../../../usr/local/Cellar/hidapi/0.15.0/lib/libhidapi.0.15.0.dylib; sourceTree = "<group>"; };
+		7541691E2E5C80C900B26A2B /* libhidapi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libhidapi.a; sourceTree = "<group>"; };
 		75D53D932E0CD9FE0012D334 /* VoiceMouseDecode */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = VoiceMouseDecode; sourceTree = BUILT_PRODUCTS_DIR; };
+		75D53D9E2E0CDB630012D334 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		75D53DA02E0CDB6A0012D334 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -35,6 +57,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7541691F2E5C80C900B26A2B /* libhidapi.a in Frameworks */,
+				75161E792E209D28001EBE9A /* CoreBluetooth.framework in Frameworks */,
+				75D53DA12E0CDB6A0012D334 /* CoreFoundation.framework in Frameworks */,
+				75D53D9F2E0CDB630012D334 /* IOKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -45,6 +71,7 @@
 			isa = PBXGroup;
 			children = (
 				75D53D952E0CD9FE0012D334 /* VoiceMouseDecode */,
+				75D53D9D2E0CDB620012D334 /* Frameworks */,
 				75D53D942E0CD9FE0012D334 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -57,6 +84,18 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		75D53D9D2E0CDB620012D334 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7541691A2E5C7E4300B26A2B /* libhidapi.0.15.0.dylib */,
+				75161E782E209D28001EBE9A /* CoreBluetooth.framework */,
+				75D53DA02E0CDB6A0012D334 /* CoreFoundation.framework */,
+				75D53D9E2E0CDB630012D334 /* IOKit.framework */,
+				7541691E2E5C80C900B26A2B /* libhidapi.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -67,6 +106,7 @@
 				75D53D8F2E0CD9FE0012D334 /* Sources */,
 				75D53D902E0CD9FE0012D334 /* Frameworks */,
 				75D53D912E0CD9FE0012D334 /* CopyFiles */,
+				7541691D2E5C7EC400B26A2B /* Embed Libraries */,
 			);
 			buildRules = (
 			);
@@ -89,6 +129,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					75D53D922E0CD9FE0012D334 = {
@@ -179,6 +220,11 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"/usr/local/Cellar/nlohmann-json/**",
+					"/usr/local/Cellar/hidapi/0.15.0/include/**",
+				);
+				LIBRARY_SEARCH_PATHS = "";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -235,6 +281,11 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"/usr/local/Cellar/nlohmann-json/**",
+					"/usr/local/Cellar/hidapi/0.15.0/include/**",
+				);
+				LIBRARY_SEARCH_PATHS = "";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -249,6 +300,13 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = GXHLAF5S27;
 				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = "/usr/local/Cellar/nlohmann-json/**";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				ONLY_ACTIVE_ARCH = NO;
+				OTHER_LDFLAGS = /Users/qianqianzu/Desktop/hidapi/build/src/mac/libhidapi.a;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -259,6 +317,12 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = GXHLAF5S27;
 				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = "/usr/local/Cellar/nlohmann-json/**";
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				OTHER_LDFLAGS = /Users/qianqianzu/Desktop/hidapi/build/src/mac/libhidapi.a;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
