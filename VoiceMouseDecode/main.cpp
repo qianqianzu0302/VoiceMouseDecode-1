@@ -378,7 +378,7 @@ int main()
         // 读取数据
         while (1) {
             res = hid_read(handle, buf, sizeof(buf));
-            printf("log\n");
+            printf("Start to read data:\n");
             if (res > 0) {
                 printf("Read %d bytes: ", res);
                 for (int i = 0; i < res; i++)
