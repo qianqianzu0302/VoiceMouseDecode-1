@@ -32,12 +32,22 @@ void DeviceRemovedCallback(void* context, IOReturn result, void* sender, IOHIDDe
 
 void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef value) {
     IOHIDElementRef elem = IOHIDValueGetElement(value);
-    CFIndex intValue = IOHIDValueGetIntegerValue(value);
+    IOHIDDeviceRef device = IOHIDElementGetDevice(elem);
+
+    // 获取 VID/PID
+    CFNumberRef vendorIDRef = (CFNumberRef)IOHIDDeviceGetProperty(device, CFSTR(kIOHIDVendorIDKey));
+    CFNumberRef productIDRef = (CFNumberRef)IOHIDDeviceGetProperty(device, CFSTR(kIOHIDProductIDKey));
+
+    int vendorID = 0, productID = 0;
+    if (vendorIDRef) CFNumberGetValue(vendorIDRef, kCFNumberIntType, &vendorID);
+    if (productIDRef) CFNumberGetValue(productIDRef, kCFNumberIntType, &productID);
+    
     uint32_t usagePage = IOHIDElementGetUsagePage(elem);
     CFIndex length = IOHIDValueGetLength(value);
     uint32_t usage = IOHIDElementGetUsage(elem);
     const uint8_t* data = (const uint8_t*)IOHIDValueGetBytePtr(value);
     
+    std::cout << "VID=0x" << std::hex << vendorID << ", PID=0x" << std::hex << productID << std::endl;
     std::cout << "usagePage = 0x" << std::hex << usagePage << ", usage = 0x" << std::hex << usage << std::endl;
     std::cout << "Input data (len=" << std::dec << length << "): ";
     for (CFIndex i = 0; i < length; ++i) {
