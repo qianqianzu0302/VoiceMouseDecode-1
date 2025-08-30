@@ -27,7 +27,7 @@ int main()
     const char *path_to_open = NULL;
     hid_device * handle = NULL;
     unsigned short vendor_id = 0x248a;
-    unsigned short product_id = 0x8266;
+    unsigned short product_id = 0xca10;
 
     /* register_global_error: global error is reset by hid_enumerate/hid_init */
     devs = hid_enumerate(vendor_id, product_id);
@@ -65,7 +65,7 @@ int main()
     // 读取数据
     while (1) {
         res = hid_read(handle, buf, sizeof(buf));
-        printf("Start to read data:\n");
+        printf("Start to read data, expected data length:%d\n", sizeof(buf));
         if (res > 0) {
             printf("Read %d bytes: ", res);
             for (int i = 0; i < res; i++)
