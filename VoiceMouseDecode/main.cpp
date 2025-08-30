@@ -27,7 +27,7 @@ int main()
     const char *path_to_open = NULL;
     hid_device * handle = NULL;
     unsigned short vendor_id = 0x248a;
-    unsigned short product_id = 0xca10;
+    unsigned short product_id = 0x8266;
 
     /* register_global_error: global error is reset by hid_enumerate/hid_init */
     devs = hid_enumerate(vendor_id, product_id);
