@@ -14,19 +14,6 @@ uint8_t outputBuffer[PACKETSIZE];
 
 struct hid_device_info *device_info;
 
-/* Function to print buffer */
-
-void printBuffer(uint8_t *buffer) {
-    
-    for (int i = 0; i < PACKETSIZE - 1; i += 1) {
-        
-        printf("%02x ", buffer[i]);
-        
-    }
-    
-    printf("%02x\n", buffer[PACKETSIZE - 1]);
-    
-}
 
 /* Main function */
 
@@ -34,21 +21,14 @@ int main(int argc, char **argv) {
 
     /* Check at least 2 argument */
     
-    if (argc < 3) {
-        
-        printf("ERROR: No VID or PID specified\n");
-        
-        return 0;
+    uint16_t vid = 0x248a;
     
-    }
-    
-    uint16_t vid = strtol(argv[1], NULL, 0);
-    
-    uint16_t pid = strtol(argv[2], NULL, 0);
+    uint16_t pid = 0xCA10;
     
     /* Connect to device */
-
+    printf("will connect to device\n");
     device_info = hid_enumerate(vid, pid);
+    
     
     if (device_info != NULL) {
         
@@ -56,7 +36,7 @@ int main(int argc, char **argv) {
         
         if (device != NULL) {
             
-            int i = 3;
+            /*int i = 3;
             
             while (i < argc) {
                 
@@ -73,21 +53,27 @@ int main(int argc, char **argv) {
                     
                 }
                 
-                hid_write(device, outputBuffer, PACKETSIZE);
+                hid_write(device, outputBuffer, PACKETSIZE);*/
+            printf("open device");
+            while(1)
+            {
                 
-                int length = hid_read_timeout(device, inputBuffer, PACKETSIZE, 100);
-                
-                if (length != PACKETSIZE) {
+                int res = hid_read_timeout(device, inputBuffer, 1, -1);
+                if (res > 0) {
+                            printf("Read %d bytes: ", res);
+                            for (int i = 0; i < res; i++)
+                                printf("%02X ", inputBuffer[i]);
+                            printf("\n");
+                        }
+                /*if (length != PACKETSIZE) {
                     
                     printf("ERROR: Incorrect response from device\n");
                     
                     return 0;
                     
-                }
+                }*/
                 
             }
-                    
-            printBuffer(inputBuffer);
             
             hid_close(device);
             
