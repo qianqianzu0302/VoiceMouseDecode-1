@@ -866,6 +866,7 @@ static void hid_report_callback(void *context, IOReturn result, void *sender,
                          IOHIDReportType report_type, uint32_t report_id,
                          uint8_t *report, CFIndex report_length)
 {
+    printf("hid_report_callback.in.reportid:%d\n", report_id);
 	(void) result;
 	(void) sender;
 	(void) report_type;
@@ -883,13 +884,14 @@ static void hid_report_callback(void *context, IOReturn result, void *sender,
 
 	/* Lock this section */
 	pthread_mutex_lock(&dev->mutex);
-
+    printf("hid_report_callback.got data.length:%d\n", report_length);
 	/* Attach the new report object to the end of the list. */
 	if (dev->input_reports == NULL) {
 		/* The list is empty. Put it at the root. */
 		dev->input_reports = rpt;
 	}
 	else {
+        printf("hid_report_callback.existing report\n");
 		/* Find the end of the list and attach. */
 		struct input_report *cur = dev->input_reports;
 		int num_queued = 0;
@@ -903,16 +905,17 @@ static void hid_report_callback(void *context, IOReturn result, void *sender,
 		   way we don't grow forever if the user never reads
 		   anything from the device. */
 		if (num_queued > 30) {
+            printf("hid_report_callback.num of queue more than 30\n");
 			return_data(dev, NULL, 0);
 		}
 	}
-
+    printf("hid_report_callback.wake up thread\n");
 	/* Signal a waiting thread that there is data. */
 	pthread_cond_signal(&dev->condition);
 
 	/* Unlock */
 	pthread_mutex_unlock(&dev->mutex);
-
+    printf("hid_report_callback.out\n");
 }
 
 /* This gets called when the read_thread's run loop gets signaled by
@@ -1239,6 +1242,7 @@ static int cond_timedwait(hid_device *dev, pthread_cond_t *cond, pthread_mutex_t
 
 int HID_API_EXPORT hid_read_timeout(hid_device *dev, unsigned char *data, size_t length, int milliseconds)
 {
+    printf("hid_read_timeout.in.expect length:%d\n", length);
 	int bytes_read = -1;
 
 	/* Lock the access to the report list. */
@@ -1272,7 +1276,9 @@ int HID_API_EXPORT hid_read_timeout(hid_device *dev, unsigned char *data, size_t
 	if (milliseconds == -1) {
 		/* Blocking */
 		int res;
+        printf("hid_read_timeout.before cond_wait\n");
 		res = cond_wait(dev, &dev->condition, &dev->mutex);
+        printf("hid_read_timeout.after cond_wait.res:%d\n", res);
 		if (res == 0)
 			bytes_read = return_data(dev, data, length);
 		else {
@@ -1313,6 +1319,7 @@ int HID_API_EXPORT hid_read_timeout(hid_device *dev, unsigned char *data, size_t
 ret:
 	/* Unlock */
 	pthread_mutex_unlock(&dev->mutex);
+    printf("hid_read_timeout.out\n");
 	return bytes_read;
 }
 

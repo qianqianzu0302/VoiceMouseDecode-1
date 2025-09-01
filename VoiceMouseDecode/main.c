@@ -7,7 +7,7 @@
 
 #include "hidapi.h"
 
-#define PACKETSIZE  64
+#define PACKETSIZE  100
 
 uint8_t inputBuffer[PACKETSIZE];
 uint8_t outputBuffer[PACKETSIZE];
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     
     uint16_t vid = 0x248a;
     
-    uint16_t pid = 0xCA10;
+    uint16_t pid = 0xca10;
     
     /* Connect to device */
     printf("will connect to device\n");
@@ -54,13 +54,13 @@ int main(int argc, char **argv) {
                 }
                 
                 hid_write(device, outputBuffer, PACKETSIZE);*/
-            printf("open device");
+            printf("open device\n");
             while(1)
             {
                 
-                int res = hid_read_timeout(device, inputBuffer, 1, -1);
+                int res = hid_read_timeout(device, inputBuffer, 100, -1);
                 if (res > 0) {
-                            printf("Read %d bytes: ", res);
+                            printf("Read %d bytes: \n", res);
                             for (int i = 0; i < res; i++)
                                 printf("%02X ", inputBuffer[i]);
                             printf("\n");
