@@ -1,5 +1,6 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/hid/IOHIDManager.h>
+#include <IOBluetooth/IOBluetooth.h>
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -10,14 +11,13 @@
 #include <time.h>
 #include "denoise.h"
 #include "hidapi.h"
-
-extern "C" void InitBLEAudio();
-extern "C" void onAudioDataReceived(const uint8_t* data, size_t len);
-extern "C" void onAIButtonEvent(uint8_t value);
+#include <regex>
 
 
-extern std::ofstream pcmFile;
-extern bool recording;
+std::map<IOHIDDeviceRef, uint32_t> deviceUsagePage; // 保存设备和usagePage映射
+
+std::ofstream pcmFile;
+bool recording;
 
 static struct timespec pressTime;
 static bool aiKeyPressed = false;
@@ -26,6 +26,9 @@ PCMServer pcmServer;
 static sbc_t sbc_context;
 static bool sbc_initialized = false;
 
+uint32_t audioUsagePage;
+
+std::string getBluetoothMouseMac();
 
 // self-defined AI key map
 std::map<uint16_t, std::string> aiKeyMap = {
@@ -48,14 +51,61 @@ std::map<uint16_t, std::string> aiKeyMap = {
     {0xFF16, "AI 键 Enter AI问答"}
 };
 
+std::map<IOHIDDeviceRef, std::string> deviceMacMap;
 // device connect
 void DeviceConnectedCallback(void* context, IOReturn result, void* sender, IOHIDDeviceRef device) {
-    std::cout << "✅ HID device connected." << std::endl;
+    CFTypeRef pidRef = IOHIDDeviceGetProperty(device, CFSTR(kIOHIDProductIDKey));
+    int pid = 0;
+    if (pidRef) CFNumberGetValue((CFNumberRef)pidRef, kCFNumberIntType, &pid);
+
+    if (pid == 0x8266) {
+        std::cout << "✅ Bluetooth mouse connected" << std::endl;
+        deviceUsagePage[device] = 0xFF12;
+        /*std::string mac = getBluetoothMouseMac();
+        if (!mac.empty()) {
+            deviceMacMap[device] = mac;   // 只在有值时插入
+            pcmServer.sendDeviceConnect(mac, 4, 1, mac);
+        } else {
+            std::cout << "⚠️ Could not find MAC for Bluetooth mouse" << std::endl;
+        }*/
+    }
+    else if (pid == 0xCA10) {
+        std::cout << "✅ 2.4G device connected" << std::endl;
+        deviceUsagePage[device] = 0xFF02;
+    }
+    else if (pid == 0x8208) {
+        std::cout << "✅ Bluetooth keyboard connected" << std::endl;
+        // 键盘不处理音频，不放入 map
+    }
+    
 }
+
 
 // device removal
 void DeviceRemovedCallback(void* context, IOReturn result, void* sender, IOHIDDeviceRef device) {
-    std::cout << "❌ HID device removed." << std::endl;
+    CFTypeRef pidRef = IOHIDDeviceGetProperty(device, CFSTR(kIOHIDProductIDKey));
+    int pid = 0;
+    if (pidRef) CFNumberGetValue((CFNumberRef)pidRef, kCFNumberIntType, &pid);
+
+    if (pid == 0x8266) {
+        std::cout << "✅ Bluetooth mouse disconnected" << std::endl;
+        auto it = deviceMacMap.find(device);
+        if (it != deviceMacMap.end()) {
+            pcmServer.sendDeviceDisconnect(it->second, 4, 1);
+            deviceMacMap.erase(it);
+        } else {
+            std::cout << "⚠️ MAC not found for disconnected device" << std::endl;
+        }
+    }
+    else if (pid == 0xCA10) {
+        std::cout << "✅ 2.4G device disconnected" << std::endl;
+    }
+    else if (pid == 0x8208) {
+        std::cout << "✅ Bluetooth keyboard disconnected" << std::endl;
+        // 键盘不处理音频，不放入 map
+    }
+
+    deviceUsagePage.erase(device); // 移除映射
 }
 
 size_t sbc_decode(const uint8_t* input, size_t input_len, uint8_t* output, size_t output_max_len) {
@@ -79,135 +129,144 @@ size_t sbc_decode(const uint8_t* input, size_t input_len, uint8_t* output, size_
 
 void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef value) {
     IOHIDElementRef element = IOHIDValueGetElement(value);
+    IOHIDDeviceRef dev = IOHIDElementGetDevice(element);
+    
     uint32_t usagePage = IOHIDElementGetUsagePage(element);
     uint32_t usage = IOHIDElementGetUsage(element);
     CFIndex length = IOHIDValueGetLength(value);
     const uint8_t* data = (const uint8_t*)IOHIDValueGetBytePtr(value);
     
-    std::cout << "usagePage = 0x" << std::hex << usagePage << ", usage = 0x" << std::hex << usage << std::endl;
-    std::cout << "Input data (len=" << std::dec << length << "): ";
-    for (CFIndex i = 0; i < length; ++i) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data[i] << " ";
-    }
-    std::cout << std::endl;
+    /*std::cout << "usagePage = 0x" << std::hex << usagePage << ", usage = 0x" << std::hex << usage << std::endl;
+     std::cout << "Input data (len=" << std::dec << length << "): ";
+     for (CFIndex i = 0; i < length; ++i) {
+     std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data[i] << " ";
+     }
+     std::cout << std::endl;*/
     
     // Handle audio data
-    if (usagePage == 0xFF02 && length >= 3 && data[0] == 0x01)
-    {
-        if (!aiKeyPressed)
+    auto it = deviceUsagePage.find(dev);
+    if (it != deviceUsagePage.end()) {
+        uint32_t expectedUsagePage = it->second;
+        
+        if (usagePage == expectedUsagePage && length >= 3 && data[0] == 0x01)
         {
-            // Press AI key first time
-            aiKeyPressed = true;
-            clock_gettime(CLOCK_MONOTONIC, &pressTime);
-            std::cout << "🔘 Press AI key" << std::endl;
-        }
-        else {
-            struct timespec currentTime;
-            clock_gettime(CLOCK_MONOTONIC, &currentTime);
-            double duration = (currentTime.tv_sec - pressTime.tv_sec) + (currentTime.tv_nsec - pressTime.tv_nsec) / 1e9;
-            //std::cout << "duration = " << duration << "s" << std::endl;
-            if (duration > 0.5)
+            if (!aiKeyPressed)
             {
-                if (recording == false)
+                // Press AI key first time
+                aiKeyPressed = true;
+                clock_gettime(CLOCK_MONOTONIC, &pressTime);
+                pcmServer.sendKeyboard(32, 1, 0);
+                std::cout << "🔘 Press AI key, send it to client" << std::endl;
+            }
+            else {
+                struct timespec currentTime;
+                clock_gettime(CLOCK_MONOTONIC, &currentTime);
+                double duration = (currentTime.tv_sec - pressTime.tv_sec) + (currentTime.tv_nsec - pressTime.tv_nsec) / 1e9;
+                //std::cout << "duration = " << duration << "s" << std::endl;
+                if (duration > 0.5)
                 {
-                    std::cout << "⏱️ Long press AI key, start to receive audio..." << std::endl;
-                    recording = true;
-                    pcmServer.sendKeyboard(32, 1, 2);  // Send long press AI key event to client
-                }
-                
-                // Handle audio decode
-                static sbc_t sbc;
-                static bool initialized = false;
-                if (!initialized) {
-                    sbc_init_msbc(&sbc, 0);
-                    sbc.endian = SBC_LE;
-                    initialized = true;
-                }
-                
-                const size_t msbc_data_len = 57;
-                const uint8_t* msbc_data = data + 2;
-                
-                int16_t pcm_output[240] = {0};
-                size_t pcm_len = 0;
-                
-                ssize_t result = sbc_decode(&sbc, msbc_data, msbc_data_len, (uint8_t *)pcm_output, sizeof(pcm_output), &pcm_len);
-                
-                if (result > 0 && pcm_len > 0)
-                {
-                    if (!pcmFile.is_open())
+                    if (recording == false)
                     {
-                        pcmFile.open("audio_data_decoded.pcm", std::ios::binary | std::ios::trunc);
-                        if (!pcmFile)
-                        {
-                            std::cerr << "❌ Can't open PCM file to write\n";
-                            return;
-                        }
+                        std::cout << "⏱️ Long press AI key, start to receive audio..." << std::endl;
+                        pcmServer.sendKeyboard(32, 1, 2);
+                        recording = true;
                     }
                     
-                    pcmFile.write(reinterpret_cast<const char*>(pcm_output), pcm_len);
-                    pcmFile.flush();
-                    // Can run "ffmpeg -f s16le -ar 16000 -ac 1 -i audio_data_decoded.pcm output.wav" to convert from pcm to wav
-                    //std::cout << "✅ Write PCM: " << pcm_len << " bytes\n";
-                    // Send audio data to client
-                    pcmServer.sendAudioPCM((uint8_t*)pcm_output, pcm_len);
+                    // Handle audio decode
+                    static sbc_t sbc;
+                    static bool initialized = false;
+                    if (!initialized) {
+                        sbc_init_msbc(&sbc, 0);
+                        sbc.endian = SBC_LE;
+                        initialized = true;
+                    }
+                    
+                    const size_t msbc_data_len = 57;
+                    const uint8_t* msbc_data = data + 2;
+                    
+                    int16_t pcm_output[240] = {0};
+                    size_t pcm_len = 0;
+                    
+                    ssize_t result = sbc_decode(&sbc, msbc_data, msbc_data_len, (uint8_t *)pcm_output, sizeof(pcm_output), &pcm_len);
+                    
+                    if (result > 0 && pcm_len > 0)
+                    {
+                        if (!pcmFile.is_open())
+                        {
+                            pcmFile.open("audio_data_decoded.pcm", std::ios::binary | std::ios::trunc);
+                            if (!pcmFile)
+                            {
+                                std::cerr << "❌ Can't open PCM file to write\n";
+                                return;
+                            }
+                        }
+                        
+                        pcmFile.write(reinterpret_cast<const char*>(pcm_output), pcm_len);
+                        pcmFile.flush();
+                        // Can run "ffmpeg -f s16le -ar 16000 -ac 1 -i audio_data_decoded.pcm output.wav" to convert from pcm to wav
+                        //std::cout << "✅ Write PCM: " << pcm_len << " bytes\n";
+                        // Send audio data to client
+                        pcmServer.sendAudioPCM((uint8_t*)pcm_output, pcm_len);
+                    }
+                    else
+                    {
+                        std::cerr << "❌ mSBC decode failed, error code: " << result << std::endl;
+                    }
+                }
+            }
+        }
+        else if (usagePage == 0x0c && length == 1 && data[0] == 0x00)
+        {
+            // Release AI key
+            if (aiKeyPressed)
+            {
+                struct timespec releaseTime;
+                clock_gettime(CLOCK_MONOTONIC, &releaseTime);
+                double duration = (releaseTime.tv_sec - pressTime.tv_sec) + (releaseTime.tv_nsec - pressTime.tv_nsec) / 1e9;
+                //std::cout << "duration = " << duration << "s" << std::endl;
+                if (duration >= 1)
+                {
+                    std::cout << "🎤 audio data ends" << std::endl;
+                    recording = false;
+                    pcmServer.sendKeyboard(32, 0, 2);  // Send release AI key event to client
                 }
                 else
                 {
-                    std::cerr << "❌ mSBC decode failed, error code: " << result << std::endl;
+                    std::cout << "🖱️ Click AI key, send it to client" << std::endl;
+                    pcmServer.sendKeyboard(32, 0, 0);
                 }
+                aiKeyPressed = false;
             }
         }
-    }
-    else if (usagePage == 0x0c && length == 1 && data[0] == 0x00)
-    {
-        // Release AI key
-        if (aiKeyPressed)
-        {
-            struct timespec releaseTime;
-            clock_gettime(CLOCK_MONOTONIC, &releaseTime);
-            double duration = (releaseTime.tv_sec - pressTime.tv_sec) + (releaseTime.tv_nsec - pressTime.tv_nsec) / 1e9;
-            //std::cout << "duration = " << duration << "s" << std::endl;
-            if (duration >= 1)
+        // Handle keyboard press
+        else if (usagePage == 0x0C && length == 2 && usage == 0xffffffff){
+            uint16_t keyCode = data[1] << 8 | data[0];  // 小端
+            auto it = aiKeyMap.find(keyCode);
+            if (it != aiKeyMap.end())
             {
-                std::cout << "🎤 audio data ends" << std::endl;
-                recording = false;
-                pcmServer.sendKeyboard(32, 0, 2);  // Send release AI key event to client
+                std::cout << "Detect " << it->second << std::endl;
+                pcmServer.sendKeyboard(keyCode, 1, 0);
             }
-            else
+            else if (keyCode == 0x0)
             {
-                std::cout << "🖱️ Click AI key" << std::endl;
+                std::cout << "Release " << std::endl;
             }
-            aiKeyPressed = false;
+            /*else
+             {
+             std::cout << "Unknown keyboard: 0x" << std::hex << keyCode << std::endl;
+             }*/
         }
-    }
-    // Handle keyboard press
-    else if (usagePage == 0x0C && length == 2 && usage == 0xffffffff){
-        uint16_t keyCode = data[1] << 8 | data[0];  // 小端
-        auto it = aiKeyMap.find(keyCode);
-        if (it != aiKeyMap.end())
-        {
-            std::cout << "Detect " << it->second << std::endl;
-            //pcmServer.sendKeyboard(keyCode, 1, 0);
-        }
-        else if (keyCode == 0x0)
-        {
-            std::cout << "Release " << std::endl;
-        }
-        /*else
-        {
-            std::cout << "Unknown keyboard: 0x" << std::hex << keyCode << std::endl;
-        }*/
     }
 }
 
-int ConnectWireless()
+int main()
 {
     // === start TCP server ===
-    /*if (!pcmServer.start()) {
+    if (!pcmServer.start()) {
         std::cerr << "Failed to start PCM TCP server.\n";
         return -1;
     }
-    std::cout << "Start TCP server " << std::endl;*/
+    std::cout << "Start TCP server " << std::endl;
     
     // === initialize HID Manager ===
     IOHIDManagerRef hidManager = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDOptionsTypeNone);
@@ -217,33 +276,47 @@ int ConnectWireless()
     }
 
     int vendorID = 0x248A;
-    int productID = 0x8271;  // bluetooth PID
+    int productID_BT_Mouse = 0x8266;  // Bluetooth Mouse PID
+    int productID_BT_KB = 0x8208;  // Bluetooth Keyboard PID
+    int productID_USB = 0xCA10; // 2.4G PID
 
-    // 创建匹配字典
-    CFMutableDictionaryRef matchingDict = CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
-        &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFNumberRef vidRef = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &vendorID);
+    
+    CFMutableDictionaryRef dictBTMouse = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFNumberRef pidRefBTMouse = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &productID_BT_Mouse);
+    CFDictionarySetValue(dictBTMouse, CFSTR(kIOHIDVendorIDKey), vidRef);
+    CFDictionarySetValue(dictBTMouse, CFSTR(kIOHIDProductIDKey), pidRefBTMouse);
+    
+    CFMutableDictionaryRef dictBTKB = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFNumberRef pidRefBTKB = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &productID_BT_KB);
+    CFDictionarySetValue(dictBTKB, CFSTR(kIOHIDVendorIDKey), vidRef);
+    CFDictionarySetValue(dictBTKB, CFSTR(kIOHIDProductIDKey), pidRefBTKB);
 
-    CFNumberRef vendorIDRef = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &vendorID);
-    CFNumberRef productIDRef = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &productID);
+    CFMutableDictionaryRef dictUSB = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+    CFNumberRef pidRefUSB = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, &productID_USB);
+    CFDictionarySetValue(dictUSB, CFSTR(kIOHIDVendorIDKey), vidRef);
+    CFDictionarySetValue(dictUSB, CFSTR(kIOHIDProductIDKey), pidRefUSB);
 
-    CFDictionarySetValue(matchingDict, CFSTR(kIOHIDVendorIDKey), vendorIDRef);
-    CFDictionarySetValue(matchingDict, CFSTR(kIOHIDProductIDKey), productIDRef);
+    // 放到数组里
+    const void* dicts[3] = { dictBTMouse, dictBTKB, dictUSB };
+    CFArrayRef matchingArray = CFArrayCreate(kCFAllocatorDefault, dicts, 3, &kCFTypeArrayCallBacks);
 
-    CFRelease(vendorIDRef);
-    CFRelease(productIDRef);
-
-    // 包装成数组
-    CFMutableArrayRef matchingArray = CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
-    CFArrayAppendValue(matchingArray, matchingDict);
-    CFRelease(matchingDict);
-
-    // 传给 IOHIDManager
+    // 设置匹配多个设备
     IOHIDManagerSetDeviceMatchingMultiple(hidManager, matchingArray);
-    CFRelease(matchingArray);
+
+    // 清理
+    CFRelease(vidRef);
+    CFRelease(pidRefBTMouse);
+    CFRelease(pidRefBTKB);
+    CFRelease(pidRefUSB);
+    CFRelease(dictBTMouse);
+    CFRelease(dictBTKB);
+    CFRelease(dictUSB);
     
     // register device connect/remove callbacks
     IOHIDManagerRegisterDeviceMatchingCallback(hidManager, DeviceConnectedCallback, nullptr);
     IOHIDManagerRegisterDeviceRemovalCallback(hidManager, DeviceRemovedCallback, nullptr);
+    CFRelease(matchingArray);
 
     IOHIDManagerRegisterInputValueCallback(hidManager, HandleInput, nullptr);
     IOHIDManagerScheduleWithRunLoop(hidManager, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
@@ -253,144 +326,19 @@ int ConnectWireless()
         std::cerr << "Failed to open HID Manager\n";
         return -1;
     }
-    
-    //  print Transport type: USB or BLE
-    CFSetRef deviceSet = IOHIDManagerCopyDevices(hidManager);
-    if (deviceSet) {
-        CFIndex count = CFSetGetCount(deviceSet);
-        IOHIDDeviceRef* devices = (IOHIDDeviceRef*)malloc(sizeof(IOHIDDeviceRef) * count);
-        CFSetGetValues(deviceSet, (const void**)devices);
-        std::cout << count << " devices" <<std::endl;
-
-        for (CFIndex i = 0; i < count; ++i) {
-            IOHIDDeviceRef device = devices[i];
-
-            // 打印 Transport
-            CFTypeRef transport = IOHIDDeviceGetProperty(device, CFSTR("Transport"));
-            char buffer[256] = {0};
-            if (transport && CFGetTypeID(transport) == CFStringGetTypeID()) {
-                CFStringGetCString((CFStringRef)transport, buffer, sizeof(buffer), kCFStringEncodingUTF8);
-            }
-            std::cout << "Device Transport: " << buffer << std::endl;
-
-            // 打印 VendorID / ProductID
-            int vid = 0, pid = 0;
-            CFTypeRef vidRef = IOHIDDeviceGetProperty(device, CFSTR(kIOHIDVendorIDKey));
-            CFTypeRef pidRef = IOHIDDeviceGetProperty(device, CFSTR(kIOHIDProductIDKey));
-            if (vidRef) CFNumberGetValue((CFNumberRef)vidRef, kCFNumberIntType, &vid);
-            if (pidRef) CFNumberGetValue((CFNumberRef)pidRef, kCFNumberIntType, &pid);
-            std::cout << "VendorID=0x" << std::hex << vid << " ProductID=0x" << pid << std::dec << std::endl;
-
-            // 枚举 Elements
-            CFArrayRef elements = IOHIDDeviceCopyMatchingElements(device, nullptr, kIOHIDOptionsTypeNone);
-            if (elements) {
-                CFIndex elemCount = CFArrayGetCount(elements);
-                for (CFIndex j = 0; j < elemCount; ++j) {
-                    IOHIDElementRef elem = (IOHIDElementRef)CFArrayGetValueAtIndex(elements, j);
-                    if (!elem) continue;
-
-                    uint32_t usagePage = IOHIDElementGetUsagePage(elem);
-                    uint32_t usage     = IOHIDElementGetUsage(elem);
-                    uint32_t reportID  = IOHIDElementGetReportID(elem);
-
-                    std::cout << "  Element: UsagePage=0x" << std::hex << usagePage
-                              << " Usage=0x" << usage
-                              << " ReportID=" << std::dec << reportID << std::endl;
-                }
-                CFRelease(elements);
-            }
-        }
-
-        free(devices);
-        CFRelease(deviceSet);
-    }
-
 
     std::cout << "Listening for HID input and BLE audio...\n";
     
-    // === initialize BLE ===
-    //InitBLEAudio();  // 👈 调用 BLE 初始化
     CFRunLoopRun();
 
     // ==== Terminate and cleanup ===
-    /*if (pcmFile.is_open()) {
+    if (pcmFile.is_open()) {
         pcmFile.close();
     }
     
-    pcmServer.stop(); // stop TCP server*/
+    pcmServer.stop(); // stop TCP server
 
     CFRelease(hidManager);
     
     return 0;
-}
-
-int main()
-{
-    int res;
-        unsigned char buf[65]; // HID 报告最大长度，1字节report ID + 64数据字节
-
-        // 初始化 HIDAPI
-        if (hid_init()) {
-            printf("Failed to initialize HIDAPI\n");
-            return 1;
-        }
-
-        // 打开设备，替换为你的 VID/PID
-       struct hid_device_info *devs, *cur_dev;
-        const char *path_to_open = NULL;
-        hid_device * handle = NULL;
-        unsigned short vendor_id = 0x248a;
-        unsigned short product_id = 0x8266;
-
-        /* register_global_error: global error is reset by hid_enumerate/hid_init */
-        devs = hid_enumerate(vendor_id, product_id);
-        if (devs == NULL) {
-            /* register_global_error: global error is already set by hid_enumerate */
-            return NULL;
-        }
-
-        cur_dev = devs;
-        while (cur_dev) {
-            printf("Device Path: %s\n", cur_dev->path);
-            printf("Usage Page: 0x%hx, Usage: 0x%hx\n\n",
-                           cur_dev->usage_page, cur_dev->usage);
-            if (cur_dev->vendor_id == vendor_id &&
-                cur_dev->product_id == product_id &&
-                cur_dev->usage_page == 0xff02)
-            {
-                path_to_open = cur_dev->path;
-                break;
-            }
-            cur_dev = cur_dev->next;  // 一定要在 while 内部
-        }
-
-
-        if (path_to_open) {
-            printf("will open ff02\n");
-            handle = hid_open_path(path_to_open);
-        } else {
-            printf("Device with requested VID/PID/(SerialNumber) not found");
-        }
-
-        hid_free_enumeration(devs);
-
-
-        // 读取数据
-        while (1) {
-            res = hid_read(handle, buf, sizeof(buf));
-            printf("Start to read data:\n");
-            if (res > 0) {
-                printf("Read %d bytes: ", res);
-                for (int i = 0; i < res; i++)
-                    printf("%02X ", buf[i]);
-                printf("\n");
-            }
-            // 可加入延时，避免 CPU 占用过高
-        }
-
-        // 关闭设备
-        hid_close(handle);
-        hid_exit();
-
-        return 0;
 }

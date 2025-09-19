@@ -20,7 +20,7 @@
 #include "sbc_primitives_sse.h"
 #include "sbc_primitives_mmx.h"
 #include "sbc_primitives_iwmmxt.h"
-#include "sbc_primitives_neon.h"
+//#include "sbc_primitives_neon.h"
 #include "sbc_primitives_armv6.h"
 
 /*

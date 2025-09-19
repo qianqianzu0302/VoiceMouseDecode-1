@@ -8,7 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		75161E792E209D28001EBE9A /* CoreBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75161E782E209D28001EBE9A /* CoreBluetooth.framework */; };
+		753D8D412E7D3E7100EE0F87 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 753D8D402E7D3E7100EE0F87 /* ApplicationServices.framework */; };
 		7541691F2E5C80C900B26A2B /* libhidapi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 7541691E2E5C80C900B26A2B /* libhidapi.a */; };
+		754169AF2E7BEBF400B26A2B /* IOBluetooth.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 754169AE2E7BEBF300B26A2B /* IOBluetooth.framework */; };
+		754169B12E7C559B00B26A2B /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 754169B02E7C559B00B26A2B /* libsqlite3.tbd */; };
 		75D53D9F2E0CDB630012D334 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75D53D9E2E0CDB630012D334 /* IOKit.framework */; };
 		75D53DA12E0CDB6A0012D334 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 75D53DA02E0CDB6A0012D334 /* CoreFoundation.framework */; };
 /* End PBXBuildFile section */
@@ -37,8 +40,11 @@
 
 /* Begin PBXFileReference section */
 		75161E782E209D28001EBE9A /* CoreBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreBluetooth.framework; path = System/Library/Frameworks/CoreBluetooth.framework; sourceTree = SDKROOT; };
+		753D8D402E7D3E7100EE0F87 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		7541691A2E5C7E4300B26A2B /* libhidapi.0.15.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libhidapi.0.15.0.dylib; path = ../../../../../usr/local/Cellar/hidapi/0.15.0/lib/libhidapi.0.15.0.dylib; sourceTree = "<group>"; };
 		7541691E2E5C80C900B26A2B /* libhidapi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libhidapi.a; sourceTree = "<group>"; };
+		754169AE2E7BEBF300B26A2B /* IOBluetooth.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOBluetooth.framework; path = System/Library/Frameworks/IOBluetooth.framework; sourceTree = SDKROOT; };
+		754169B02E7C559B00B26A2B /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		75D53D932E0CD9FE0012D334 /* VoiceMouseDecode */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = VoiceMouseDecode; sourceTree = BUILT_PRODUCTS_DIR; };
 		75D53D9E2E0CDB630012D334 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
 		75D53DA02E0CDB6A0012D334 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
@@ -57,6 +63,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				753D8D412E7D3E7100EE0F87 /* ApplicationServices.framework in Frameworks */,
+				754169B12E7C559B00B26A2B /* libsqlite3.tbd in Frameworks */,
+				754169AF2E7BEBF400B26A2B /* IOBluetooth.framework in Frameworks */,
 				7541691F2E5C80C900B26A2B /* libhidapi.a in Frameworks */,
 				75161E792E209D28001EBE9A /* CoreBluetooth.framework in Frameworks */,
 				75D53DA12E0CDB6A0012D334 /* CoreFoundation.framework in Frameworks */,
@@ -87,6 +96,9 @@
 		75D53D9D2E0CDB620012D334 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				753D8D402E7D3E7100EE0F87 /* ApplicationServices.framework */,
+				754169B02E7C559B00B26A2B /* libsqlite3.tbd */,
+				754169AE2E7BEBF300B26A2B /* IOBluetooth.framework */,
 				7541691A2E5C7E4300B26A2B /* libhidapi.0.15.0.dylib */,
 				75161E782E209D28001EBE9A /* CoreBluetooth.framework */,
 				75D53DA02E0CDB6A0012D334 /* CoreFoundation.framework */,
@@ -171,6 +183,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					"$(ARCHS_STANDARD)",
+					"\"Standard Architectures (arm64, x86_64)\"",
+				);
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -229,7 +245,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -238,6 +254,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = (
+					"$(ARCHS_STANDARD)",
+					"\"Standard Architectures (arm64, x86_64)\"",
+				);
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -290,6 +310,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = NO;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -297,6 +318,10 @@
 		75D53D9B2E0CD9FE0012D334 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = (
+					"$(ARCHS_STANDARD)",
+					"\"Standard Architectures (arm64, x86_64\"",
+				);
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = GXHLAF5S27;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -314,6 +339,10 @@
 		75D53D9C2E0CD9FE0012D334 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = (
+					"$(ARCHS_STANDARD)",
+					"\"Standard Architectures (arm64, x86_64\"",
+				);
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = GXHLAF5S27;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -322,6 +351,7 @@
 					"$(inherited)",
 					"$(PROJECT_DIR)",
 				);
+				ONLY_ACTIVE_ARCH = NO;
 				OTHER_LDFLAGS = /Users/qianqianzu/Desktop/hidapi/build/src/mac/libhidapi.a;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
