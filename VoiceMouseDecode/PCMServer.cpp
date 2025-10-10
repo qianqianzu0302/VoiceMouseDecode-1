@@ -87,10 +87,24 @@ void PCMServer::run() {
     }
 
     std::cout << "Client connected!\n";
+    
+    if (onClientConnected) {
+        onClientConnected();
+    }
+    
     std::thread(&PCMServer::clientThread, this, client_fd).detach();
 
     while (running) {
         usleep(100000); // idle loop, real data is sent from sendPCM
+    }
+}
+
+void PCMServer::sendStatusMessage(const std::string &msg) {
+    std::lock_guard<std::mutex> lock(clientsMutex);
+    for (int sock : clients) {
+        uint32_t len = htonl(msg.size());
+        send(sock, &len, sizeof(len), 0);
+        send(sock, msg.c_str(), msg.size(), 0);
     }
 }
 
@@ -203,17 +217,42 @@ void PCMServer::sendDeviceDisconnect(std::string deviceInfo, uint8_t deviceType,
     }
 }
 
+CGEventRef nullEventTapCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void* refcon) {
+    return event;
+}
+
 bool PCMServer::checkPermission(int clientFd) {
-    bool allowed = AXIsProcessTrusted();
+    /*bool allowed = AXIsProcessTrusted();
     if (allowed) {
         std::cout << "✅ Accessibility permission granted" << std::endl;
     } else {
         std::cout << "❌ Accessibility permission denied" << std::endl;
         std::cout << "👉 Please goto System Settings -> Privacy & Security -> Accessbility, allow your application" << std::endl;
     }
+    return allowed;*/
+    
+    // 尝试创建一个全局事件 tap 来检测输入监听权限
+    CGEventMask mask = CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp);
+    CFMachPortRef tap = CGEventTapCreate(
+        kCGHIDEventTap,         // 全局 HID 层
+        kCGHeadInsertEventTap,
+        kCGEventTapOptionDefault,
+        mask,
+        nullEventTapCallback,                // 回调为空，只做权限检查
+        nullptr
+    );
+
+    bool allowed = (tap != nullptr);
+    if (allowed) {
+        std::cout << "✅ Input Monitoring permission granted\n";
+        CFRelease(tap);
+    } else {
+        std::cout << "❌ Input Monitoring permission denied\n";
+        sendStatusMessage("INPUT_MONITORING_DENIED");
+    }
+
     return allowed;
 }
-
 
 void PCMServer::onClientMessage(int clientFd, const std::string& msg) {
     if (msg == "CHECK_PERMISSIONS") {

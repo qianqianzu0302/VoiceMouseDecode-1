@@ -21,12 +21,17 @@ public:
     void sendKeyboard(uint16_t key, uint8_t state, uint16_t action_type);
     void sendDeviceConnect(std::string deviceInfo, uint8_t deviceType, uint8_t deviceMode, std::string deviceMACAddr);
     void sendDeviceDisconnect(std::string deviceInfo, uint8_t deviceType, uint8_t deviceMode);
-    
+    void setOnClientConnected(std::function<void()> callback) {
+        onClientConnected = callback;
+    }
+    void sendStatusMessage(const std::string &msg);
     void onClientMessage(int clientFd, const std::string& msg);
 
 private:
     void run();             // TCP监听线程
     void clientThread(int clientFd);
+    std::vector<int> clients;
+    std::mutex clientsMutex;
 
     int server_fd{-1};      // 服务端 socket
     int client_fd{-1};      // 唯一客户端 socket
@@ -42,5 +47,5 @@ private:
     // 权限相关辅助函数
     bool checkPermission(int clientFd);
     
-    
+    std::function<void()> onClientConnected;
 };
