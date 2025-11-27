@@ -49,7 +49,9 @@ std::map<uint16_t, std::string> aiKeyMap = {
     {0xFF13, "AI 键 . 翻译"},
     {0xFF14, "AI 键 - 录音转写"},
     {0xFF15, "AI 键 + 写作"},
-    {0xFF16, "AI 键 Enter AI问答"}
+    {0xFF16, "AI 键 Enter AI问答"},
+    {0x020E, "鼠标多媒体键 语音翻译"},
+    {0x030E, "鼠标多媒体键 截图"}
 };
 
 // ====== 获取缓存文件路径 ======
@@ -260,6 +262,43 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
         pcmServer.sendDeviceConnect(macStr, 0, 2, macStr);
     }
     
+    // Handle keyboard press
+    if (usagePage == 0xc && length == 2 && usage == 0xFFFFFFFF)
+    {
+        std::cout << "Keyboard press" << std::endl;
+        uint16_t keyCode = data[1] << 8 | data[0];  // 小端
+        auto it = aiKeyMap.find(keyCode);
+        if (it != aiKeyMap.end())
+        {
+            std::cout << "Detect " << it->second << std::endl;
+            pcmServer.sendKeyboard(keyCode, 0, 0);
+        }
+        else if (keyCode == 0x0)
+        {
+            std::cout << "Release " << std::endl;
+        }
+        /*else
+         {
+         std::cout << "Unknown keyboard: 0x" << std::hex << keyCode << std::endl;
+         }*/
+    }
+    
+    // Handle mouse multi-media press
+    if (usagePage == 0xc && usage == 0x20e)
+    {
+        if (data[0] == 0x01)
+        {
+            std::cout << "Press Mouse multi-media key Translate, send it to client" << std::endl;
+            pcmServer.sendKeyboard(526, 1, 0);
+        }
+        else if (data[0] == 0x0)
+        {
+            std::cout << "Release Mouse multi-media key Translate, send it to client" << std::endl;
+            pcmServer.sendKeyboard(526, 0, 0);
+        }
+    }
+    
+    
     // Handle audio data
     auto it = deviceUsagePage.find(dev);
     if (it != deviceUsagePage.end()) {
@@ -354,24 +393,6 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
                 }
                 aiKeyPressed = false;
             }
-        }
-        // Handle keyboard press
-        else if (usagePage == 0x0C && length == 2 && usage == 0xffffffff){
-            uint16_t keyCode = data[1] << 8 | data[0];  // 小端
-            auto it = aiKeyMap.find(keyCode);
-            if (it != aiKeyMap.end())
-            {
-                std::cout << "Detect " << it->second << std::endl;
-                pcmServer.sendKeyboard(keyCode, 1, 0);
-            }
-            else if (keyCode == 0x0)
-            {
-                std::cout << "Release " << std::endl;
-            }
-            /*else
-             {
-             std::cout << "Unknown keyboard: 0x" << std::hex << keyCode << std::endl;
-             }*/
         }
     }
 }
