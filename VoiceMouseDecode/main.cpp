@@ -22,6 +22,7 @@ bool recording;
 
 static struct timespec pressTime;
 static bool aiKeyPressed = false;
+static bool transKeyPressed = false;
 
 PCMServer pcmServer;
 static sbc_t sbc_context;
@@ -286,15 +287,17 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
     // Handle mouse multi-media press
     if (usagePage == 0xc && usage == 0x20e)
     {
-        if (data[0] == 0x01)
+        if (data[0] == 0x01 && !transKeyPressed)
         {
             std::cout << "Press Mouse multi-media key Translate, send it to client" << std::endl;
             pcmServer.sendKeyboard(526, 1, 0);
+            transKeyPressed = true;
         }
         else if (data[0] == 0x0)
         {
             std::cout << "Release Mouse multi-media key Translate, send it to client" << std::endl;
             pcmServer.sendKeyboard(526, 0, 0);
+            transKeyPressed = false;
         }
     }
     
@@ -304,7 +307,7 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
     if (it != deviceUsagePage.end()) {
         uint32_t expectedUsagePage = it->second;
         
-        if (usagePage == expectedUsagePage && length >= 3 && data[0] == 0x01)
+        if (usagePage == expectedUsagePage && length >= 3 && data[0] == 0x01 && !transKeyPressed)
         {
             if (!aiKeyPressed)
             {
@@ -371,7 +374,7 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
                 }
             }
         }
-        else if (usagePage == 0x0c && length == 1 && data[0] == 0x00)
+        else if (usagePage == 0x0c && length == 1 && data[0] == 0x00 && !transKeyPressed)
         {
             // Release AI key
             if (aiKeyPressed)
