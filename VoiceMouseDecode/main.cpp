@@ -17,7 +17,7 @@
 
 std::map<IOHIDDeviceRef, uint32_t> deviceUsagePage; // 保存设备和usagePage映射
 
-//std::ofstream pcmFile;
+std::ofstream pcmFile;
 bool recording;
 
 static struct timespec pressTime;
@@ -264,7 +264,7 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
     }
     
     // Handle keyboard press
-    if (usagePage == 0xc && length == 2 && usage == 0xFFFFFFFF)
+    if (usagePage == 0xc && length == 2 && usage == 0xFFFFFFFF && !transKeyPressed)
     {
         std::cout << "Keyboard press" << std::endl;
         uint16_t keyCode = data[1] << 8 | data[0];  // 小端
@@ -287,13 +287,20 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
     // Handle mouse multi-media press
     if (usagePage == 0xc && usage == 0x20e)
     {
+        /*std::cout << "usagePage = 0x" << std::hex << usagePage << ", usage = 0x" << std::hex << usage << std::endl;
+         std::cout << "Input data (len=" << std::dec << length << "): ";
+         for (CFIndex i = 0; i < length; ++i) {
+         std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)data[i] << " ";
+         }
+         std::cout << std::endl;*/
+        
         if (data[0] == 0x01 && !transKeyPressed)
         {
             std::cout << "Press Mouse multi-media key Translate, send it to client" << std::endl;
-            pcmServer.sendKeyboard(526, 1, 0);
             transKeyPressed = true;
+            pcmServer.sendKeyboard(526, 1, 0);
         }
-        else if (data[0] == 0x0)
+        else if (data[0] == 0x0 && transKeyPressed)
         {
             std::cout << "Release Mouse multi-media key Translate, send it to client" << std::endl;
             pcmServer.sendKeyboard(526, 0, 0);
@@ -307,9 +314,9 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
     if (it != deviceUsagePage.end()) {
         uint32_t expectedUsagePage = it->second;
         
-        if (usagePage == expectedUsagePage && length >= 3 && data[0] == 0x01 && !transKeyPressed)
+        if (usagePage == expectedUsagePage && length >= 3 && data[0] == 0x01)
         {
-            if (!aiKeyPressed)
+            if (!aiKeyPressed && !transKeyPressed)
             {
                 // Press AI key first time
                 aiKeyPressed = true;
@@ -324,7 +331,7 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
                 //std::cout << "duration = " << duration << "s" << std::endl;
                 if (duration > 0.5)
                 {
-                    if (recording == false)
+                    if (recording == false && !transKeyPressed)
                     {
                         std::cout << "⏱️ Long press AI key, start to receive audio..." << std::endl;
                         pcmServer.sendKeyboard(32, 1, 2);
@@ -350,7 +357,7 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
                     
                     if (result > 0 && pcm_len > 0)
                     {
-                        /*if (!pcmFile.is_open())
+                        if (!pcmFile.is_open())
                         {
                             pcmFile.open("audio_data_decoded.pcm", std::ios::binary | std::ios::trunc);
                             if (!pcmFile)
@@ -361,7 +368,7 @@ void HandleInput(void* context, IOReturn result, void* sender, IOHIDValueRef val
                         }
                         
                         pcmFile.write(reinterpret_cast<const char*>(pcm_output), pcm_len);
-                        pcmFile.flush();*/
+                        pcmFile.flush();
                         // Can run "ffmpeg -f s16le -ar 16000 -ac 1 -i audio_data_decoded.pcm output.wav" to convert from pcm to wav
                         //std::cout << "✅ Write PCM: " << pcm_len << " bytes\n";
                         // Send audio data to client

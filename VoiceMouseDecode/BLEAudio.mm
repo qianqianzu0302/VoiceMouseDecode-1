@@ -11,6 +11,11 @@ std::string getBluetoothMouseMac() {
         NSString *name = dev.name;
         NSString *addr = dev.addressString;
         if (!name || !addr) continue; // 避免 nil 崩溃
+        
+        /*NSLog(@"[BLE] Device: name=%@ | addr=%@| class=0x%X",
+                      name,
+                      addr,
+                      dev.deviceClassMajor);*/
 
         // 匹配鼠标
         if ([name rangeOfString:@"AI" options:NSCaseInsensitiveSearch].location != NSNotFound) {
@@ -21,4 +26,10 @@ std::string getBluetoothMouseMac() {
     }
     return ""; // 没找到返回空
 }
+
+
+
+
+
+
 
